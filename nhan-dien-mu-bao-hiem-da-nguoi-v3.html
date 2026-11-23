@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HelmetGuard AI v1.1 - Giám Sát An Toàn Đa Người</title>
+
+  <style>
+    :root {
+      --bg-base: #060911;
+      --bg-surface: rgba(17, 24, 39, 0.78);
+      --bg-elevated: rgba(30, 41, 59, 0.72);
+      --border-subtle: rgba(148, 163, 184, 0.14);
+      --border-strong: rgba(148, 163, 184, 0.26);
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #06b6d4;
+      --accent-glow: rgba(6, 182, 212, 0.35);
+      --indigo: #6366f1;
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.14);
+      --danger: #f43f5e;
+      --danger-bg: rgba(244, 63, 94, 0.15);
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      background-image:
+        radial-gradient(circle at 12% 10%, rgba(6, 182, 212, 0.11), transparent 38%),
+        radial-gradient(circle at 88% 85%, rgba(99, 102, 241, 0.12), transparent 42%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 18px 22px 28px;
+    }
+
+    .app-shell {
+      max-width: 1380px;
+      margin: 0 auto;
+    }
+
+    /* TOP NAVBAR */
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 20px;
+      background: var(--bg-surface);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      margin-bottom: 18px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, var(--accent), var(--indigo));
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 20px var(--accent-glow);
+      flex-shrink: 0;
+    }
+
+    .brand-icon svg {
+      width: 22px;
+      height: 22px;
+      color: #fff;
+    }
+
+    .brand-text h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .version-chip {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: rgba(6, 182, 212, 0.16);
+      color: #67e8f9;
+      border: 1px solid rgba(6, 182, 212, 0.35);
+    }
+
+    .brand-sub {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .telemetry-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tele-card {
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid var(--border-subtle);
+      padding: 7px 13px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .tele-card strong {
+      color: var(--text-primary);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .dot-pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+    }
+
+    /* MAIN WORKSPACE */
+    .workspace {
+      display: grid;
+      grid-template-columns: 1fr 390px;
+      gap: 18px;
+      align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* CAMERA STAGE */
+    .stage-wrapper {
+      background: var(--bg-surface);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .stage-wrapper.state-safe {
+      border-color: rgba(16, 185, 129, 0.65);
+      box-shadow: 0 0 32px rgba(16, 185, 129, 0.16);
+    }
+
+    .stage-wrapper.state-danger {
+      border-color: rgba(244, 63, 94, 0.85);
+      box-shadow: 0 0 36px rgba(244, 63, 94, 0.28);
+      animation: alarmGlow 1.1s infinite ease-in-out;
+    }
+
+    @keyframes alarmGlow {
+      0%, 100% { border-color: rgba(244, 63, 94, 0.9); }
+      50% { border-color: rgba(253, 164, 175, 0.95); }
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: radial-gradient(circle at center, #0d1424 0%, #04060c 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Subtle HUD corner brackets */
+    .hud-corner {
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      border-color: rgba(6, 182, 212, 0.45);
+      border-style: solid;
+      z-index: 4;
+      pointer-events: none;
+    }
+    .hud-tl { top: 12px; left: 12px; border-width: 2px 0 0 2px; border-top-left-radius: 6px; }
+    .hud-tr { top: 12px; right: 12px; border-width: 2px 2px 0 0; border-top-right-radius: 6px; }
+    .hud-bl { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; border-bottom-left-radius: 6px; }
+    .hud-br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; border-bottom-right-radius: 6px; }
+
+    video, canvas#overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    video.mirrored {
+      transform: scaleX(-1);
+    }
+
+    .hud-overlay-top {
+      position: absolute;
+      top: 16px;
+      left: 18px;
+      right: 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      z-index: 6;
+      pointer-events: none;
+    }
+
+    .hud-pill {
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      background: rgba(9, 13, 24, 0.78);
+      border: 1px solid var(--border-strong);
+      backdrop-filter: blur(10px);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: 0.01em;
+    }
+
+    .hud-pill.safe {
+      background: rgba(6, 95, 70, 0.88);
+      border-color: #34d399;
+      color: #ecfdf5;
+    }
+
+    .hud-pill.danger {
+      background: rgba(159, 18, 57, 0.92);
+      border-color: #fda4af;
+      color: #fff1f2;
+    }
+
+    .setup-card {
+      position: relative;
+      z-index: 5;
+      background: rgba(15, 23, 42, 0.86);
+      border: 1px solid var(--border-strong);
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
+      padding: 24px 28px;
+      max-width: 460px;
+      text-align: center;
+      margin: 16px;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 7px;
+      background: rgba(30, 41, 59, 0.9);
+      border-radius: 999px;
+      overflow: hidden;
+      margin: 14px 0 10px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 6%;
+      background: linear-gradient(90deg, var(--accent), var(--indigo), var(--success));
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    /* CONTROL DOCK */
+    .control-dock {
+      padding: 14px 18px;
+      background: rgba(11, 16, 29, 0.85);
+      border-top: 1px solid var(--border-subtle);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dock-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    button {
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid var(--border-strong);
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      transition: all 0.18s ease;
+      user-select: none;
+    }
+
+    button svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
+    button:hover:not(:disabled) {
+      background: rgba(51, 65, 85, 0.85);
+      transform: translateY(-1px);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    button:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
+    button.btn-accent {
+      background: linear-gradient(135deg, var(--accent), #0284c7);
+      border-color: rgba(103, 232, 249, 0.4);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(6, 182, 212, 0.28);
+    }
+
+    button.btn-danger {
+      background: var(--danger-bg);
+      border-color: rgba(244, 63, 94, 0.45);
+      color: #fda4af;
+    }
+
+    button.btn-danger:hover:not(:disabled) {
+      background: rgba(244, 63, 94, 0.26);
+    }
+
+    button.btn-success {
+      background: var(--success-bg);
+      border-color: rgba(16, 185, 129, 0.45);
+      color: #6ee7b7;
+    }
+
+    button.btn-success:hover:not(:disabled) {
+      background: rgba(16, 185, 129, 0.24);
+    }
+
+    /* RIGHT SIDEBAR */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .glass-panel {
+      background: var(--bg-surface);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .panel-title {
+      font-size: 0.96rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title svg {
+      width: 18px;
+      height: 18px;
+      color: var(--accent);
+    }
+
+    .chip-count {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(99, 102, 241, 0.18);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.35);
+    }
+
+    .panel-desc {
+      font-size: 0.81rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+
+    /* KNN TRAIN CARDS */
+    .knn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .knn-tile {
+      background: rgba(15, 23, 42, 0.68);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 10px;
+      text-align: center;
+    }
+
+    .knn-tile-label {
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+
+    .knn-tile-num {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 4px 0 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .knn-tile button {
+      width: 100%;
+      padding: 8px 6px;
+      font-size: 0.78rem;
+    }
+
+    /* ANALYTICS & HISTORY */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .kpi-box {
+      background: rgba(15, 23, 42, 0.68);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-box::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+    }
+
+    .kpi-box.safe::before { background: var(--success); }
+    .kpi-box.danger::before { background: var(--danger); }
+
+    .kpi-box span {
+      display: block;
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .kpi-box strong {
+      font-size: 1.55rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .log-feed {
+      max-height: 240px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-right: 2px;
+    }
+
+    .log-feed::-webkit-scrollbar {
+      width: 5px;
+    }
+
+    .log-feed::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.25);
+      border-radius: 999px;
+    }
+
+    .log-card {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      background: rgba(15, 23, 42, 0.75);
+      border: 1px solid rgba(244, 63, 94, 0.28);
+      padding: 8px;
+      border-radius: 10px;
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .log-card img {
+      width: 68px;
+      height: 38px;
+      object-fit: cover;
+      border-radius: 6px;
+      border: 1px solid rgba(244, 63, 94, 0.4);
+      background: #000;
+      flex-shrink: 0;
+    }
+
+    .empty-log {
+      text-align: center;
+      padding: 20px 12px;
+      font-size: 0.81rem;
+      color: var(--text-dim);
+      border: 1px dashed var(--border-subtle);
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- HEADER -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M12 2a9 9 0 0 0-9 9v3a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3a9 9 0 0 0-9-9Z"/>
+            <path d="M3 13h18"/>
+            <path d="M8 16v2a4 4 0 0 0 8 0v-2"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>
+            HelmetGuard AI
+            <span class="version-chip">v1.1</span>
+          </h1>
+          <div class="brand-sub">Hệ thống giám sát & nhận diện mũ bảo hiểm đa đối tượng thời gian thực</div>
+        </div>
+      </div>
+
+      <div class="telemetry-strip">
+        <div class="tele-card">
+          <span class="dot-pulse"></span>
+          <span>Hiện tại có: <strong id="peopleCountValue">0 người</strong></span>
+        </div>
+        <div class="tele-card">
+          <span>Tốc độ: <strong id="fpsValue">0</strong> FPS</span>
+        </div>
+        <div class="tele-card">
+          <span>Độ trễ: <strong id="latencyValue">0</strong> ms</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN GRID -->
+    <main class="workspace">
+      <!-- LEFT: CAMERA VIEWPORT -->
+      <section class="stage-wrapper" id="cameraCard">
+        <div class="viewport">
+          <div class="hud-corner hud-tl"></div>
+          <div class="hud-corner hud-tr"></div>
+          <div class="hud-corner hud-bl"></div>
+          <div class="hud-corner hud-br"></div>
+
+          <video id="webcam" autoplay playsinline muted class="mirrored"></video>
+          <canvas id="overlay"></canvas>
+
+          <div class="hud-overlay-top">
+            <div class="hud-pill" id="liveStatusTag">Đang chuẩn bị hệ thống...</div>
+            <div class="hud-pill" id="modeTag">Chế độ: Nhận diện mặc định</div>
+          </div>
+
+          <div class="setup-card" id="placeholderMsg">
+            <p id="setupTitle" style="font-size: 1.02rem; font-weight: 700; color: #f8fafc;">
+              Đang tự động cấu hình mô hình AI vào ổ cứng...
+            </p>
+            <div class="progress-track" id="progressWrap">
+              <div class="progress-bar" id="progressFill"></div>
+            </div>
+            <p id="setupDetail" style="font-size: 0.83rem; color: var(--text-secondary); line-height: 1.45;">
+              Lần mở đầu tiên sẽ tự tải & lưu vĩnh viễn vào IndexedDB của máy. Các lần sau chạy 100% không cần Wi-Fi.
+            </p>
+            <button id="btnRetrySetup" class="btn-accent" style="display: none; margin-top: 14px;">
+              Thử cấu hình lại
+            </button>
+          </div>
+        </div>
+
+        <div class="control-dock">
+          <div class="dock-group">
+            <button id="btnToggleCam" class="btn-accent" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+              </svg>
+              <span>Bật Camera</span>
+            </button>
+            <button id="btnSwitchCam" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/>
+              </svg>
+              <span>Đổi Cam Trước/Sau</span>
+            </button>
+            <button id="btnMirror">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3v18"/><path d="M8 7l-4 5 4 5"/><path d="M16 7l4 5-4 5"/>
+              </svg>
+              <span>Lật Gương: Bật</span>
+            </button>
+          </div>
+
+          <div class="dock-group">
+            <button id="btnSound">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              </svg>
+              <span>Âm Cảnh Báo: Bật</span>
+            </button>
+            <button id="btnResetCache" title="Xóa bộ nhớ đệm AI để tải lại">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+              </svg>
+              <span>Nạp lại AI</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: CONTROLS & LOGS -->
+      <aside class="sidebar">
+        <!-- KNN TRAINING PANEL -->
+        <div class="glass-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.93 4.93l2.83 2.83"/><path d="M16.24 16.24l2.83 2.83"/><path d="M2 12h4"/><path d="M18 12h4"/>
+              </svg>
+              <span>Hiệu Chỉnh Mẫu (KNN)</span>
+            </div>
+            <span class="chip-count" id="knnBadge">0 mẫu</span>
+          </div>
+
+          <p class="panel-desc">
+            Đứng trước camera (ưu tiên 1 người rõ mặt/mũ khi dạy mẫu) và <strong>nhấn giữ</strong> nút 1–2 giây để dạy AI (tự lưu vĩnh viễn trên máy):
+          </p>
+
+          <div class="knn-grid">
+            <div class="knn-tile">
+              <div class="knn-tile-label" style="color: var(--success);">CÓ ĐỘI MŨ</div>
+              <div class="knn-tile-num" id="countHelmet">0</div>
+              <button id="btnTrainHelmet" class="btn-success" disabled>Giữ thêm Có Mũ</button>
+            </div>
+            <div class="knn-tile">
+              <div class="knn-tile-label" style="color: var(--danger);">KHÔNG ĐỘI MŨ</div>
+              <div class="knn-tile-num" id="countNoHelmet">0</div>
+              <button id="btnTrainNoHelmet" class="btn-danger" disabled>Giữ thêm Không Mũ</button>
+            </div>
+          </div>
+
+          <div class="dock-group" style="justify-content: space-between;">
+            <button id="btnSaveModel" style="flex: 1;" disabled>Lưu mẫu đã học</button>
+            <button id="btnClearModel" style="flex: 1;" disabled>Xóa mẫu</button>
+          </div>
+        </div>
+
+        <!-- STATS & HISTORY PANEL -->
+        <div class="glass-panel">
+          <div class="panel-header" style="margin-bottom: 12px;">
+            <div class="panel-title">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              <span>Thống Kê & Cảnh Báo</span>
+            </div>
+          </div>
+
+          <div class="kpi-grid">
+            <div class="kpi-box safe">
+              <span>Lượt hợp lệ (Có mũ)</span>
+              <strong style="color: var(--success);" id="statSafe">0</strong>
+            </div>
+            <div class="kpi-box danger">
+              <span>Cảnh báo không mũ</span>
+              <strong style="color: var(--danger);" id="statViolation">0</strong>
+            </div>
+          </div>
+
+          <div class="log-feed" id="historyList">
+            <div class="empty-log">
+              Chưa ghi nhận cảnh báo vi phạm nào.
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <canvas id="headCropCanvas" width="224" height="224" style="display: none;"></canvas>
+
+  <script>
+    // =========================================================================
+    // PHẦN 1: BỘ TỰ ĐỘNG ĐÓNG GÓI & LƯU TRỮ OFFLINE (INDEXEDDB VAULT)
+    // =========================================================================
+    const DB_NAME = 'HelmetAI_AutoOffline_DB';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'assets';
+
+    const LIB_URLS = [
+      'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js',
+      'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js',
+      'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js',
+      'https://cdn.jsdelivr.net/npm/@tensorflow-models/knn-classifier@1.2.4/dist/knn-classifier.min.js'
+    ];
+
+    let dbInstance = null;
+    let loadedFromNetwork = false;
+
+    function openVaultDB() {
+      if (dbInstance) return Promise.resolve(dbInstance);
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'url' });
+          }
+        };
+        req.onsuccess = (e) => {
+          dbInstance = e.target.result;
+          resolve(dbInstance);
+        };
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function vaultGet(url) {
+      const db = await openVaultDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const req = tx.objectStore(STORE_NAME).get(url);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function vaultPut(record) {
+      const db = await openVaultDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const req = tx.objectStore(STORE_NAME).put(record);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function vaultClear() {
+      const db = await openVaultDB();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const req = tx.objectStore(STORE_NAME).clear();
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    const nativeFetch = window.fetch.bind(window);
+    window.fetch = async function(input, init) {
+      const url = typeof input === 'string' ? input : (input && input.url ? input.url : String(input));
+      const method = (init && init.method) ? init.method.toUpperCase() : 'GET';
+
+      if (method === 'GET' && url.startsWith('http')) {
+        try {
+          const cached = await vaultGet(url);
+          if (cached && cached.buffer) {
+            return new Response(cached.buffer, {
+              status: 200,
+              statusText: 'OK',
+              headers: { 'Content-Type': cached.contentType || 'application/octet-stream' }
+            });
+          }
+        } catch (err) {
+          console.warn('Lỗi đọc cache IndexedDB:', err);
+        }
+
+        const response = await nativeFetch(input, init);
+        if (response.ok) {
+          loadedFromNetwork = true;
+          const clone = response.clone();
+          const buffer = await clone.arrayBuffer();
+          const contentType = response.headers.get('Content-Type') || 'application/octet-stream';
+          await vaultPut({ url, buffer, contentType, savedAt: Date.now() });
+        }
+        return response;
+      }
+
+      return nativeFetch(input, init);
+    };
+
+    async function loadScriptFromVault(url) {
+      let codeText = null;
+      const cached = await vaultGet(url);
+
+      if (cached && cached.code) {
+        codeText = cached.code;
+      } else {
+        loadedFromNetwork = true;
+        const res = await nativeFetch(url);
+        if (!res.ok) throw new Error(`Không thể tải thư viện: ${url}`);
+        codeText = await res.text();
+        await vaultPut({ url, code: codeText, savedAt: Date.now() });
+      }
+
+      const scriptEl = document.createElement('script');
+      scriptEl.textContent = codeText;
+      document.head.appendChild(scriptEl);
+    }
+
+    // =========================================================================
+    // PHẦN 2: LOGIC NHẬN DIỆN MŨ BẢO HIỂM ĐA NGƯỜI THỜI GIAN THỰC
+    // =========================================================================
+    const video = document.getElementById('webcam');
+    const overlay = document.getElementById('overlay');
+    const ctx = overlay.getContext('2d');
+    const headCanvas = document.getElementById('headCropCanvas');
+    const headCtx = headCanvas.getContext('2d');
+
+    const cameraCard = document.getElementById('cameraCard');
+    const placeholderMsg = document.getElementById('placeholderMsg');
+    const setupTitle = document.getElementById('setupTitle');
+    const setupDetail = document.getElementById('setupDetail');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressFill = document.getElementById('progressFill');
+    const btnRetrySetup = document.getElementById('btnRetrySetup');
+
+    const peopleCountValue = document.getElementById('peopleCountValue');
+    const fpsValue = document.getElementById('fpsValue');
+    const latencyValue = document.getElementById('latencyValue');
+    const liveStatusTag = document.getElementById('liveStatusTag');
+    const modeTag = document.getElementById('modeTag');
+
+    const btnToggleCam = document.getElementById('btnToggleCam');
+    const btnSwitchCam = document.getElementById('btnSwitchCam');
+    const btnMirror = document.getElementById('btnMirror');
+    const btnSound = document.getElementById('btnSound');
+    const btnResetCache = document.getElementById('btnResetCache');
+
+    const btnTrainHelmet = document.getElementById('btnTrainHelmet');
+    const btnTrainNoHelmet = document.getElementById('btnTrainNoHelmet');
+    const btnSaveModel = document.getElementById('btnSaveModel');
+    const btnClearModel = document.getElementById('btnClearModel');
+    const countHelmetEl = document.getElementById('countHelmet');
+    const countNoHelmetEl = document.getElementById('countNoHelmet');
+    const knnBadge = document.getElementById('knnBadge');
+
+    const statSafeEl = document.getElementById('statSafe');
+    const statViolationEl = document.getElementById('statViolation');
+    const historyList = document.getElementById('historyList');
+
+    let cocoModel = null;
+    let mobilenetModel = null;
+    let classifier = null;
+
+    let stream = null;
+    let isRunning = false;
+    let facingMode = 'user';
+    let isMirrored = true;
+    let soundEnabled = true;
+    let audioCtx = null;
+    let lastBeepTime = 0;
+    let lastSnapshotTime = 0;
+
+    let safeCount = 0;
+    let violationCount = 0;
+    let lastLoggedState = null;
+
+    let trainInterval = null;
+    let latestHeadReady = false;
+
+    const STORAGE_KEY = 'helmet_knn_dataset_v1';
+    const HELMET_KEYWORDS = ['helmet', 'crash helmet', 'hard hat', 'football helmet'];
+
+    function setSetupProgress(percent, title, detail) {
+      progressFill.style.width = `${percent}%`;
+      if (title) setupTitle.textContent = title;
+      if (detail) setupDetail.textContent = detail;
+    }
+
+    async function bootstrapSystem() {
+      btnRetrySetup.style.display = 'none';
+      progressWrap.style.display = 'block';
+      loadedFromNetwork = false;
+
+      try {
+        setSetupProgress(10, 'Bước 1/3: Nạp lõi tính toán TensorFlow.js...', 'Đang kiểm tra bộ nhớ đệm nội bộ trên máy...');
+        for (let i = 0; i < LIB_URLS.length; i++) {
+          await loadScriptFromVault(LIB_URLS[i]);
+          setSetupProgress(15 + (i + 1) * 8);
+        }
+
+        await tf.ready();
+
+        setSetupProgress(55, 'Bước 2/3: Cấu hình mô hình phát hiện nhiều người (COCO-SSD)...', 'Tự động lưu trọng số mạng nơ-ron vào ổ cứng...');
+        cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+
+        setSetupProgress(80, 'Bước 3/3: Cấu hình mô hình nhận diện mũ (MobileNet)...', 'Hoàn tất đóng gói dữ liệu ngoại tuyến...');
+        mobilenetModel = await mobilenet.load({ version: 2, alpha: 0.5 });
+
+        classifier = knnClassifier.create();
+        loadSavedKnnDataset();
+
+        setSetupProgress(100, 'Hệ thống đã tự cấu hình xong!', 'Toàn bộ mô hình đã nằm trên máy. Bạn có thể tắt Wi-Fi vĩnh viễn.');
+
+
+        btnToggleCam.disabled = false;
+        btnSwitchCam.disabled = false;
+        liveStatusTag.textContent = 'Sẵn sàng giám sát';
+
+        await startCamera(true);
+      } catch (err) {
+        console.error(err);
+        progressWrap.style.display = 'none';
+        setupTitle.textContent = 'Cần kết nối mạng trong lần mở đầu tiên';
+        setupDetail.textContent = 'Hệ thống chưa tìm thấy bộ mô hình AI trong bộ nhớ máy. Hãy bật Wi-Fi/mạng trong 10 giây rồi nhấn nút bên dưới để tự động cấu hình.';
+        btnRetrySetup.style.display = 'inline-block';
+      }
+    }
+
+    function playAlertBeep() {
+      if (!soundEnabled) return;
+      const now = Date.now();
+      if (now - lastBeepTime < 1500) return;
+      lastBeepTime = now;
+
+      try {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(520, audioCtx.currentTime + 0.25);
+
+        gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.28);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.28);
+      } catch (e) {}
+    }
+
+    async function startCamera(isAutoStart = false) {
+      stopCamera();
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+
+        overlay.width = video.videoWidth;
+        overlay.height = video.videoHeight;
+
+        isRunning = true;
+        placeholderMsg.style.display = 'none';
+        btnToggleCam.querySelector('span').textContent = 'Tắt Camera';
+        btnToggleCam.classList.remove('btn-accent');
+        btnToggleCam.classList.add('btn-danger');
+
+        btnTrainHelmet.disabled = false;
+        btnTrainNoHelmet.disabled = false;
+
+        detectLoop();
+      } catch (err) {
+        progressWrap.style.display = 'none';
+        setupTitle.textContent = 'Hệ thống đã sẵn sàng (Chờ cấp quyền Camera)';
+        setupDetail.textContent = 'Nhấn nút "Bật Camera" bên dưới và chọn Cho phép (Allow) trên trình duyệt để bắt đầu.';
+        if (!isAutoStart) {
+          alert('Không thể truy cập camera. Hãy kiểm tra quyền Camera trên thanh địa chỉ trình duyệt.');
+        }
+      }
+    }
+
+    function stopCamera() {
+      isRunning = false;
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      ctx.clearRect(0, 0, overlay.width, overlay.height);
+      peopleCountValue.textContent = '0 người';
+      placeholderMsg.style.display = 'block';
+      btnToggleCam.querySelector('span').textContent = 'Bật Camera';
+      btnToggleCam.classList.remove('btn-danger');
+      btnToggleCam.classList.add('btn-accent');
+      btnTrainHelmet.disabled = true;
+      btnTrainNoHelmet.disabled = true;
+      liveStatusTag.textContent = 'Camera đang tắt';
+      liveStatusTag.className = 'hud-pill';
+      cameraCard.className = 'stage-wrapper';
+    }
+
+    let frameCount = 0;
+    let lastFpsUpdate = performance.now();
+
+    function drawRoundedRect(context, x, y, w, h, r) {
+      context.beginPath();
+      context.moveTo(x + r, y);
+      context.lineTo(x + w - r, y);
+      context.quadraticCurveTo(x + w, y, x + w, y + r);
+      context.lineTo(x + w, y + h - r);
+      context.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      context.lineTo(x + r, y + h);
+      context.quadraticCurveTo(x, y + h, x, y + h - r);
+      context.lineTo(x, y + r);
+      context.quadraticCurveTo(x, y, x + r, y);
+      context.closePath();
+    }
+
+    async function detectLoop() {
+      if (!isRunning) return;
+      const t0 = performance.now();
+
+      if (video.readyState === 4) {
+        if (overlay.width !== video.videoWidth || overlay.height !== video.videoHeight) {
+          overlay.width = video.videoWidth;
+          overlay.height = video.videoHeight;
+        }
+
+        const predictions = await cocoModel.detect(video, 20, 0.5);
+        const persons = predictions.filter(p => p.class === 'person');
+
+        ctx.clearRect(0, 0, overlay.width, overlay.height);
+        latestHeadReady = false;
+        peopleCountValue.textContent = `${persons.length} người`;
+
+        if (persons.length === 0) {
+          liveStatusTag.textContent = 'Không phát hiện người trước camera';
+          liveStatusTag.className = 'hud-pill';
+          cameraCard.className = 'stage-wrapper';
+          lastLoggedState = null;
+        } else {
+          let violationPeople = 0;
+          let safePeople = 0;
+          const violationBoxes = [];
+
+          for (let i = 0; i < persons.length; i++) {
+            const person = persons[i];
+            const [x, y, w, h] = person.bbox;
+
+            const headX = Math.max(0, x + w * 0.12);
+            const headY = Math.max(0, y);
+            const headW = Math.min(video.videoWidth - headX, w * 0.76);
+            const headH = Math.min(video.videoHeight - headY, h * 0.38);
+
+            const drawPersonX = isMirrored ? overlay.width - (x + w) : x;
+
+            if (headW > 18 && headH > 18) {
+              headCtx.drawImage(video, headX, headY, headW, headH, 0, 0, 224, 224);
+              latestHeadReady = true;
+
+              const result = await classifyHeadRegion();
+              const isWearingHelmet = result.hasHelmet;
+              const confPercent = Math.round(result.confidence * 100);
+
+              const drawHeadX = isMirrored ? overlay.width - (headX + headW) : headX;
+              const color = isWearingHelmet ? '#10b981' : '#f43f5e';
+
+              if (isWearingHelmet) {
+                safePeople++;
+              } else {
+                violationPeople++;
+                violationBoxes.push({ x: drawHeadX, y: headY, w: headW, h: headH });
+              }
+
+              // Khung toàn thân nét đứt nhẹ
+              ctx.save();
+              ctx.setLineDash([6, 4]);
+              ctx.strokeStyle = isWearingHelmet
+                ? 'rgba(16, 185, 129, 0.42)'
+                : 'rgba(244, 63, 94, 0.52)';
+              ctx.lineWidth = 1.8;
+              drawRoundedRect(ctx, drawPersonX, y, w, h, 8);
+              ctx.stroke();
+              ctx.restore();
+
+              // Khung vùng đầu / mũ bo góc
+              ctx.strokeStyle = color;
+              ctx.lineWidth = 3;
+              drawRoundedRect(ctx, drawHeadX, headY, headW, headH, 8);
+              ctx.stroke();
+
+              const label = `#${i + 1} ${isWearingHelmet ? 'CÓ MŨ' : 'KHÔNG MŨ!'} (${confPercent}%)`;
+              ctx.font = 'bold 13px Inter, sans-serif';
+              const textWidth = ctx.measureText(label).width;
+              const labelY = headY > 28 ? headY - 26 : headY + 4;
+
+              ctx.fillStyle = color;
+              drawRoundedRect(ctx, drawHeadX, labelY, textWidth + 14, 22, 6);
+              ctx.fill();
+
+              ctx.fillStyle = '#ffffff';
+              ctx.fillText(label, drawHeadX + 7, labelY + 15);
+            }
+          }
+
+          if (violationPeople > 0) {
+            liveStatusTag.textContent = `CẢNH BÁO: ${violationPeople}/${persons.length} NGƯỜI KHÔNG ĐỘI MŨ! (${safePeople} có mũ)`;
+            liveStatusTag.className = 'hud-pill danger';
+            cameraCard.className = 'stage-wrapper state-danger';
+            playAlertBeep();
+
+            if (lastLoggedState !== 'violation') {
+              violationCount += violationPeople;
+              statViolationEl.textContent = violationCount;
+              lastLoggedState = 'violation';
+            }
+            captureViolationSnapshot(violationPeople, persons.length, violationBoxes);
+          } else {
+            liveStatusTag.textContent = `AN TOÀN: TẤT CẢ ${safePeople} NGƯỜI ĐÃ ĐỘI MŨ`;
+            liveStatusTag.className = 'hud-pill safe';
+            cameraCard.className = 'stage-wrapper state-safe';
+
+            if (lastLoggedState !== 'safe') {
+              safeCount += safePeople;
+              statSafeEl.textContent = safeCount;
+              lastLoggedState = 'safe';
+            }
+          }
+        }
+      }
+
+      const t1 = performance.now();
+      latencyValue.textContent = Math.round(t1 - t0);
+
+      frameCount++;
+      if (t1 - lastFpsUpdate >= 500) {
+        fpsValue.textContent = Math.round((frameCount * 1000) / (t1 - lastFpsUpdate));
+        frameCount = 0;
+        lastFpsUpdate = t1;
+      }
+
+      requestAnimationFrame(detectLoop);
+    }
+
+    async function classifyHeadRegion() {
+      const counts = classifier.getClassExampleCount();
+      const hasCustomData = (counts['helmet'] || 0) > 0 && (counts['no_helmet'] || 0) > 0;
+
+      if (hasCustomData) {
+        modeTag.textContent = 'Chế độ: Mẫu KNN tùy chỉnh';
+        const activation = mobilenetModel.infer(headCanvas, true);
+        const res = await classifier.predictClass(activation, 5);
+        activation.dispose();
+
+        return {
+          hasHelmet: res.label === 'helmet',
+          confidence: res.confidences[res.label] || 0.85
+        };
+      } else {
+        modeTag.textContent = 'Chế độ: MobileNet mặc định';
+        const predictions = await mobilenetModel.classify(headCanvas, 5);
+        let helmetScore = 0;
+
+        for (const p of predictions) {
+          const name = p.className.toLowerCase();
+          if (HELMET_KEYWORDS.some(k => name.includes(k))) {
+            helmetScore += p.probability;
+          }
+        }
+
+        if (helmetScore >= 0.16) {
+          return { hasHelmet: true, confidence: Math.min(0.99, helmetScore + 0.4) };
+        } else {
+          const topProb = predictions[0] ? predictions[0].probability : 0.75;
+          return { hasHelmet: false, confidence: Math.max(0.6, topProb) };
+        }
+      }
+    }
+
+    function captureViolationSnapshot(violationPeople, totalPeople, violationBoxes = []) {
+      const now = Date.now();
+      if (now - lastSnapshotTime < 4000) return;
+      lastSnapshotTime = now;
+
+      const snapCanvas = document.createElement('canvas');
+      snapCanvas.width = 240;
+      snapCanvas.height = 135;
+      const sCtx = snapCanvas.getContext('2d');
+
+      if (isMirrored) {
+        sCtx.translate(snapCanvas.width, 0);
+        sCtx.scale(-1, 1);
+      }
+      sCtx.drawImage(video, 0, 0, snapCanvas.width, snapCanvas.height);
+
+      if (overlay.width > 0 && overlay.height > 0 && violationBoxes.length > 0) {
+        sCtx.setTransform(1, 0, 0, 1, 0, 0);
+        const sx = snapCanvas.width / overlay.width;
+        const sy = snapCanvas.height / overlay.height;
+        sCtx.strokeStyle = '#f43f5e';
+        sCtx.lineWidth = 2;
+        for (const box of violationBoxes) {
+          sCtx.strokeRect(box.x * sx, box.y * sy, box.w * sx, box.h * sy);
+        }
+      }
+
+      const dataUrl = snapCanvas.toDataURL('image/jpeg', 0.75);
+      const timeStr = new Date().toLocaleTimeString('vi-VN');
+
+      if (historyList.querySelector('.empty-log')) {
+        historyList.innerHTML = '';
+      }
+
+      const item = document.createElement('div');
+      item.className = 'log-card';
+      item.innerHTML = `
+        <img src="${dataUrl}" alt="Vi phạm" />
+        <div>
+          <div style="font-weight: 700; font-size: 0.82rem; color: #fda4af;">${violationPeople}/${totalPeople} người không đội mũ</div>
+          <div style="color: var(--text-secondary); font-size: 0.74rem; margin-top: 2px;">Ghi nhận lúc ${timeStr}</div>
+        </div>
+      `;
+      historyList.prepend(item);
+
+      if (historyList.children.length > 15) {
+        historyList.removeChild(historyList.lastChild);
+      }
+    }
+
+    function addTrainingExample(label) {
+      if (!isRunning || !latestHeadReady) return;
+      const activation = mobilenetModel.infer(headCanvas, true);
+      classifier.addExample(activation, label);
+      activation.dispose();
+      updateKnnUI();
+    }
+
+    function updateKnnUI() {
+      const counts = classifier.getClassExampleCount();
+      const hCount = counts['helmet'] || 0;
+      const nhCount = counts['no_helmet'] || 0;
+
+      countHelmetEl.textContent = hCount;
+      countNoHelmetEl.textContent = nhCount;
+      knnBadge.textContent = `${hCount + nhCount} mẫu`;
+
+      btnSaveModel.disabled = (hCount + nhCount) === 0;
+      btnClearModel.disabled = (hCount + nhCount) === 0;
+    }
+
+    function saveKnnDataset() {
+      const dataset = classifier.getClassifierDataset();
+      const datasetObj = {};
+      Object.keys(dataset).forEach(key => {
+        datasetObj[key] = {
+          data: Array.from(dataset[key].dataSync()),
+          shape: dataset[key].shape
+        };
+      });
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(datasetObj));
+      alert('Đã lưu bộ mẫu nhận diện vĩnh viễn trên máy!');
+    }
+
+    function loadSavedKnnDataset() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      try {
+        const datasetObj = JSON.parse(raw);
+        const tensorObj = {};
+        Object.keys(datasetObj).forEach(key => {
+          tensorObj[key] = tf.tensor(datasetObj[key].data, datasetObj[key].shape);
+        });
+        classifier.setClassifierDataset(tensorObj);
+        updateKnnUI();
+      } catch (e) {}
+    }
+
+    btnToggleCam.addEventListener('click', () => {
+      if (isRunning) stopCamera();
+      else startCamera(false);
+    });
+
+    btnSwitchCam.addEventListener('click', () => {
+      facingMode = facingMode === 'user' ? 'environment' : 'user';
+      if (isRunning) startCamera(false);
+    });
+
+    btnMirror.addEventListener('click', () => {
+      isMirrored = !isMirrored;
+      video.classList.toggle('mirrored', isMirrored);
+      btnMirror.querySelector('span').textContent = `Lật Gương: ${isMirrored ? 'Bật' : 'Tắt'}`;
+    });
+
+    btnSound.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      btnSound.querySelector('span').textContent = `Âm Cảnh Báo: ${soundEnabled ? 'Bật' : 'Tắt'}`;
+    });
+
+    btnRetrySetup.addEventListener('click', bootstrapSystem);
+
+    btnResetCache.addEventListener('click', async () => {
+      if (confirm('Xóa bộ nhớ đệm AI hiện tại và tải cấu hình mới? (Cần có mạng khi tải lại)')) {
+        stopCamera();
+        await vaultClear();
+        location.reload();
+      }
+    });
+
+    function bindHoldButton(btn, label) {
+      const start = (e) => {
+        e.preventDefault();
+        if (trainInterval) clearInterval(trainInterval);
+        addTrainingExample(label);
+        trainInterval = setInterval(() => addTrainingExample(label), 120);
+      };
+      const stop = () => {
+        if (trainInterval) {
+          clearInterval(trainInterval);
+          trainInterval = null;
+        }
+      };
+      btn.addEventListener('mousedown', start);
+      btn.addEventListener('touchstart', start);
+      window.addEventListener('mouseup', stop);
+      window.addEventListener('touchend', stop);
+    }
+
+    bindHoldButton(btnTrainHelmet, 'helmet');
+    bindHoldButton(btnTrainNoHelmet, 'no_helmet');
+
+    btnSaveModel.addEventListener('click', saveKnnDataset);
+
+    btnClearModel.addEventListener('click', () => {
+      classifier.clearAllClasses();
+      localStorage.removeItem(STORAGE_KEY);
+      updateKnnUI();
+    });
+
+    bootstrapSystem();
+  </script>
+</body>
+</html>
